@@ -2,6 +2,7 @@
 #include <limits.h>
 #include <string.h>
 #include <unistd.h>
+#include <jni.h>
 
 #include <string>
 
@@ -9,7 +10,10 @@
 #include "profiler.h"
 #include "stacktraces.h"
 
+static void DumpCurrentState(int);
+static FILE* CurrStateFile();
 static Profiler *prof;
+static JavaVM *jvm;
 FILE *Globals::OutFile;
 
 void JNICALL OnThreadStart(jvmtiEnv *jvmti_env, JNIEnv *jni_env,
@@ -67,7 +71,60 @@ void JNICALL OnVMInit(jvmtiEnv *jvmti, JNIEnv *jni_env, jthread thread) {
     jclass klass = classList[i];
     CreateJMethodIDsForClass(jvmti, klass);
   }
+  signal(SIGUSR1, DumpCurrentState);
   prof->Start();
+}
+
+static void DumpCurrentState(int signum) {
+  if (signum != SIGUSR1) {
+    return;
+  }
+  FILE *file = CurrStateFile();
+  JavaVMAttachArgs args;
+  args.version = JNI_VERSION_1_6; // choose your JNI version
+  args.name = NULL; // you might want to give the java thread a name
+  args.group = NULL; // you might want to assign the java thread to a ThreadGroup
+  JNIEnv* myNewEnv;
+  jvm->AttachCurrentThread((void **)&myNewEnv, &args);
+  prof->DumpToFile(file);
+  jvm->DetachCurrentThread();
+  fclose(file);
+}
+
+static FILE* CurrStateFile()
+{
+  char *yyyy, *mm, *dd, *filename;
+  struct tm* time_now = (struct tm*)calloc(1, sizeof(struct tm));
+  time_t *tloc = (time_t *)calloc(1, sizeof(time_t));
+
+  yyyy = (char *)calloc(32, sizeof(char));
+  mm = (char *)calloc(32, sizeof(char));
+  dd = (char *)calloc(32, sizeof(char));
+  filename = (char *)calloc(512, sizeof(char));
+
+  time(tloc);
+  localtime_r(tloc, time_now);
+
+  snprintf(yyyy, 32, "%i", time_now->tm_year+1900);
+  if (time_now->tm_mon+1 < 10)
+    snprintf(mm, 32, "0%i", time_now->tm_mon+1);
+  else
+    snprintf(mm, 32, "%i", time_now->tm_mon+1);
+
+  if (time_now->tm_mday < 10)
+    snprintf(dd, 32, "0%i", time_now->tm_mday);
+  else
+    snprintf(dd, 32, "%i", time_now->tm_mday);
+
+  snprintf(filename, 512, "%s-%s-%s-%s-%i-%i-%i", kCurrentStateFile, yyyy, mm, dd, time_now->tm_hour, time_now->tm_min, time_now->tm_sec);
+  FILE *rtn = fopen(filename, "w+");
+  free(time_now);
+  free(tloc);
+  free(yyyy);
+  free(mm);
+  free(dd);
+  free(filename);
+  return rtn;
 }
 
 void JNICALL OnClassPrepare(jvmtiEnv *jvmti_env, JNIEnv *jni_env,
@@ -247,6 +304,7 @@ AGENTEXPORT jint JNICALL Agent_OnLoad(JavaVM *vm, char *options,
   Asgct::SetAsgct(Accessors::GetJvmFunction<ASGCTType>("AsyncGetCallTrace"));
 
   prof = new Profiler(jvmti);
+  jvm = vm;
 
   return 0;
 }

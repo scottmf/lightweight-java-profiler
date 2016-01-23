@@ -62,7 +62,12 @@ $(AGENT): $(OBJECTS)
 	$(CC) $(COPTS) -shared -o $(BUILD_DIR)/$(AGENT) \
 	  -Bsymbolic $(OBJECTS) $(LIBS)
 
+testjava: teststack.class
+
+teststack.class: teststack.java
+	$(JAVA_HOME)/bin/javac teststack.java
+
 all: $(AGENT)
 
 clean:
-	rm -rf $(BUILD_DIR)/*
+	rm -rf $(BUILD_DIR)/* *.class

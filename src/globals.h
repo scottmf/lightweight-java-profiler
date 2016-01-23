@@ -229,6 +229,8 @@ static const int kMaxFramesToCapture = 128;
 
 // Location where the data are dumped.
 static const char kDefaultOutFile[] = "traces.txt";
+static const char kDefaultTriggerFile[] = "/tmp/profile";
+static const char kCurrentStateFile[] = "/tmp/currstate";
 
 class Globals {
  public:

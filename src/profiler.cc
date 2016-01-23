@@ -1,9 +1,12 @@
 #include "profiler.h"
+#include "globals.h"
 
 #include <errno.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 #include <string.h>
 #include <sys/time.h>
+#include <pthread.h>
 
 #include "display.h"
 
@@ -21,6 +24,8 @@ TraceData Profiler::traces_[kMaxStackTraces];
 JVMPI_CallFrame Profiler::frame_buffer_[kMaxStackTraces][kMaxFramesToCapture];
 
 int Profiler::failures_[kNumCallTraceErrors + 1];
+
+static pthread_mutex_t tracesLock = PTHREAD_MUTEX_INITIALIZER;
 
 namespace {
 
@@ -53,15 +58,27 @@ static uint64_t CalculateHash(JVMPI_CallTrace *trace, int skip) {
   return h;
 }
 
+static int file_exists(const char *filename)
+{
+  struct stat buffer;   
+  return (stat (filename, &buffer) == 0);
+}
+
 void Profiler::Handle(int signum, siginfo_t *info, void *context) {
   IMPLICITLY_USE(signum);
   IMPLICITLY_USE(info);
   ErrnoRaii err_storage;  // stores and resets errno
 
+  if (!file_exists(kDefaultTriggerFile)) {
+    return;
+  }
+
+  pthread_mutex_lock(&tracesLock);
   JNIEnv *env = Accessors::CurrentJniEnv();
   if (env == NULL) {
     // native / JIT / GC thread, which isn't attached to the JVM.
     failures_[0]++;
+    pthread_mutex_unlock(&tracesLock);
     return;
   }
 
@@ -86,6 +103,7 @@ void Profiler::Handle(int signum, siginfo_t *info, void *context) {
   if (trace.num_frames < 0) {
     int idx = -trace.num_frames;
     if (idx > kNumCallTraceErrors) {
+      pthread_mutex_unlock(&tracesLock);
       return;
     }
     failures_[idx]++;
@@ -113,18 +131,19 @@ void Profiler::Handle(int signum, siginfo_t *info, void *context) {
 
       traces_[i].trace.frames = fb;
       traces_[i].trace.num_frames = trace.num_frames;
-      return;
+      break;
     }
 
     if ((traces_[i].trace.num_frames == trace.num_frames) &&
         (memcmp(traces_[i].trace.frames, trace.frames,
                 sizeof(JVMPI_CallFrame) * kMaxFramesToCapture) == 0)) {
       NoBarrier_AtomicIncrement(&(traces_[i].count), 1);
-      return;
+      break;
     }
 
     i = (i + 1) % kMaxStackTraces;
   } while (i != idx);
+  pthread_mutex_unlock(&tracesLock);
 }
 
 // This method schedules the SIGPROF timer to go off every sec
@@ -177,6 +196,7 @@ void Profiler::Stop() {
   handler_.SetSigprofInterval(0, 0);
   // Breaks encapsulation, but whatever.
   signal(SIGPROF, SIG_IGN);
+  signal(SIGUSR1, SIG_IGN);
 }
 
 static int CompareTraceData(const void *v1, const void *v2) {
@@ -186,12 +206,21 @@ static int CompareTraceData(const void *v1, const void *v2) {
 }
 
 void Profiler::DumpToFile(FILE *file) {
-  qsort(traces_, kMaxStackTraces, sizeof(TraceData), &CompareTraceData);
+  TraceData *traces = new TraceData[kMaxStackTraces];
+  int *failures = new int[kNumCallTraceErrors + 1];
+
+  pthread_mutex_lock(&tracesLock);
+  memcpy(traces, traces_, sizeof(traces_));
+  memcpy(failures, failures_, sizeof(failures_));
+  pthread_mutex_unlock(&tracesLock);
+
+  qsort(traces, kMaxStackTraces, sizeof(TraceData), &CompareTraceData);
 
   StackTracesPrinter printer(file, jvmti_);
 
-  printer.PrintStackTraces(traces_, kMaxStackTraces);
-  printer.PrintLeafHistogram(traces_, kMaxStackTraces);
+  printer.PrintStackTraces(traces, kMaxStackTraces);
+  printer.PrintLeafHistogram(traces, kMaxStackTraces);
+  free(traces);
 
   fprintf(file, "Failures:\n"
                 "Instances    Reason\n"
@@ -216,4 +245,5 @@ void Profiler::DumpToFile(FILE *file) {
           failures_[-kNotWalkableFrameJava], failures_[-kUnknownState],
           failures_[-kTicksThreadExit], failures_[-kDeoptHandler],
           failures_[-kSafepoint]);
+  free(failures);
 }
