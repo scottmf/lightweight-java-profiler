@@ -225,7 +225,7 @@ static const int kNumInterrupts = 100;
 static const int kMaxStackTraces = 3000;
 
 // Maximum number of frames to store from the stack traces sampled.
-static const int kMaxFramesToCapture = 128;
+static const int kMaxFramesToCapture = 512;
 
 // Location where the data are dumped.
 static const char kDefaultOutFile[] = "traces.txt";

@@ -212,6 +212,8 @@ void Profiler::DumpToFile(FILE *file) {
   pthread_mutex_lock(&tracesLock);
   memcpy(traces, traces_, sizeof(traces_));
   memcpy(failures, failures_, sizeof(failures_));
+  memset(traces_, 0, sizeof(traces_));
+  memset(failures_, 0, sizeof(failures_));
   pthread_mutex_unlock(&tracesLock);
 
   qsort(traces, kMaxStackTraces, sizeof(TraceData), &CompareTraceData);
@@ -220,7 +222,7 @@ void Profiler::DumpToFile(FILE *file) {
 
   printer.PrintStackTraces(traces, kMaxStackTraces);
   printer.PrintLeafHistogram(traces, kMaxStackTraces);
-  free(traces);
+  delete traces;
 
   fprintf(file, "Failures:\n"
                 "Instances    Reason\n"
@@ -245,5 +247,5 @@ void Profiler::DumpToFile(FILE *file) {
           failures_[-kNotWalkableFrameJava], failures_[-kUnknownState],
           failures_[-kTicksThreadExit], failures_[-kDeoptHandler],
           failures_[-kSafepoint]);
-  free(failures);
+  delete failures;
 }

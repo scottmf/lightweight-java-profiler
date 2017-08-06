@@ -157,9 +157,7 @@ bool StackTracesPrinter::GetStackFrameElements(JVMPI_CallFrame *frame,
   JvmtiScopedPtr<char> name_ptr(jvmti_);
 
   // Get method name, put it in name_ptr
-  if ((error = jvmti_->GetMethodName(frame->method_id, name_ptr.GetRef(), NULL,
-                                     NULL)) !=
-      JVMTI_ERROR_NONE) {
+  if ((error = jvmti_->GetMethodName(frame->method_id, name_ptr.GetRef(), NULL, NULL)) != JVMTI_ERROR_NONE) {
     name_ptr.AbandonBecauseOfError();
     if (error == JVMTI_ERROR_INVALID_METHODID) {
       static int once = 0;
