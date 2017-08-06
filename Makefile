@@ -67,7 +67,15 @@ testjava: teststack.class
 teststack.class: teststack.java
 	$(JAVA_HOME)/bin/javac teststack.java
 
-all: $(AGENT)
+all: docker-compile
+
+docker-compile: docker-build
+	docker run --privileged=true -it -v ${PWD}:/workdir ljp-jessie:latest
+
+docker-build: Dockerfile run.sh
+	docker build . -t ljp-jessie:latest -q
+
+compile: $(AGENT)
 
 clean:
 	rm -rf $(BUILD_DIR)/* *.class
