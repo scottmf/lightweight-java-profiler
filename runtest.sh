@@ -6,6 +6,7 @@ function check_state() {
     egrep "teststack\.method|teststack\.main" /tmp/currstate* > /dev/null
     if [ "$?" == 0 ]
     then
+        cat /tmp/currstate*
         echo "test passed!"
     else
         cat /tmp/currstate*
@@ -19,7 +20,7 @@ TESTFILE="/tmp/teststack"
 touch /tmp/profile
 make testjava
 rm -f $TESTFILE
-${JAVA_HOME}/bin/java -agentpath:$PWD/build-64/liblagent.so=file=$TESTFILE teststack 2>/dev/null &
+${JAVA_HOME}/bin/java -agentpath:$PWD/build-64/liblagent.so=file=$TESTFILE teststack &
 sleep 5
 check_state
 sleep 5

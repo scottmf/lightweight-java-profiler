@@ -241,11 +241,11 @@ void Profiler::DumpToFile(FILE *file) {
                 " (for dynamic recompilation).\n"
                 "%-12d Thread in a safepoint"
                 " (such as a stop-the-world GC).\n",
-          failures_[-kNativeStackTrace], failures_[-kNoClassLoad],
-          failures_[-kGcTraceError], failures_[-kUnknownNotJava],
-          failures_[-kNotWalkableFrameNotJava], failures_[-kUnknownJava],
-          failures_[-kNotWalkableFrameJava], failures_[-kUnknownState],
-          failures_[-kTicksThreadExit], failures_[-kDeoptHandler],
-          failures_[-kSafepoint]);
+          failures[-kNativeStackTrace], failures[-kNoClassLoad],
+          failures[-kGcTraceError], failures[-kUnknownNotJava],
+          failures[-kNotWalkableFrameNotJava], failures[-kUnknownJava],
+          failures[-kNotWalkableFrameJava], failures[-kUnknownState],
+          failures[-kTicksThreadExit], failures[-kDeoptHandler],
+          failures[-kSafepoint]);
   delete failures;
 }

@@ -218,11 +218,11 @@ inline intptr_t NoBarrier_AtomicIncrement(volatile intptr_t* ptr,
 
 // Things that should probably be user-configurable
 
-// Number of times per second that we profile
-static const int kNumInterrupts = 100;
+// Profiling interval in us
+static const int kNumInterrupts = 500000;
 
 // Maximum number of stack traces
-static const int kMaxStackTraces = 3000;
+static const int kMaxStackTraces = 16384;
 
 // Maximum number of frames to store from the stack traces sampled.
 static const int kMaxFramesToCapture = 512;
