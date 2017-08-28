@@ -2,8 +2,9 @@
 
 function check_state() {
     pkill -SIGUSR1 -f teststack
+    sleep 1
     while [ ! `ls /tmp/currstate*` ]; do sleep 1; done
-    egrep "teststack\.method|teststack\.main" /tmp/currstate* > /dev/null
+    egrep "teststack.lambda$main$1" /tmp/currstate* > /dev/null
     if [ "$?" == 0 ]
     then
         cat /tmp/currstate*

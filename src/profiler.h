@@ -6,6 +6,12 @@
 #ifndef PROFILER_H
 #define PROFILER_H
 
+#if _DEBUG 
+#define D(x) x
+#else 
+#define D(x)
+#endif
+
 class SignalHandler {
  public:
   SignalHandler() {}

@@ -2,6 +2,7 @@ SHELL:=/bin/bash
 UNAME:=$(shell uname | tr '[A-Z]' '[a-z]')
 
 BITS?=64
+DEBUG?=0
 ifeq ($(UNAME), darwin)
   READLINK_ARGS:=""
   PLATFORM_WARNINGS:=-Weverything -Wno-c++98-compat-pedantic -Wno-padded \
@@ -42,7 +43,8 @@ GLOBAL_WARNINGS=-Wall -Werror -Wformat-security -Wno-char-subscripts \
 GLOBAL_COPTS=-fdiagnostics-show-option -fno-exceptions \
 	-fno-omit-frame-pointer -fno-strict-aliasing -funsigned-char \
 	-fno-asynchronous-unwind-tables -m$(BITS) -msse2 -g \
-	-D__STDC_FORMAT_MACROS
+	-D__STDC_FORMAT_MACROS -D_DEBUG=$(DEBUG)
+
 COPTS:=$(PLATFORM_COPTS) $(GLOBAL_COPTS) $(PLATFORM_WARNINGS) \
 	$(GLOBAL_WARNINGS) $(OPT)
 

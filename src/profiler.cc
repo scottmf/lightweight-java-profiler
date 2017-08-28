@@ -64,6 +64,30 @@ static int file_exists(const char *filename)
   return (stat (filename, &buffer) == 0);
 }
 
+static itimerval get_rand_itimer() {
+  // in us
+  const int one_sec = 1000000;
+  int sec_wait = 0;
+  int usec_wait = rand() % (2 * kNumInterrupts) + 1000;
+  if (usec_wait > one_sec) {
+    sec_wait = 1;
+    usec_wait = usec_wait - one_sec;
+  }
+  static struct itimerval timer;
+  timer.it_interval.tv_sec = sec_wait;
+  timer.it_interval.tv_usec = usec_wait;
+  timer.it_value = timer.it_interval;
+  return timer;
+}
+
+static void reset_rand_itimer() {
+  itimerval itimer = get_rand_itimer();
+  itimerval curr;
+  getitimer(ITIMER_PROF, &curr);
+  D(fprintf(stderr, "next=%06ld/%06ld curr=%06ld/%06ld %d\n", (long) curr.it_interval.tv_usec, (long) curr.it_interval.tv_sec, (long) curr.it_value.tv_usec, (long) curr.it_value.tv_sec, (int) time(NULL)));
+  setitimer(ITIMER_PROF, &itimer, &curr);
+}
+
 void Profiler::Handle(int signum, siginfo_t *info, void *context) {
   IMPLICITLY_USE(signum);
   IMPLICITLY_USE(info);
@@ -144,6 +168,7 @@ void Profiler::Handle(int signum, siginfo_t *info, void *context) {
     i = (i + 1) % kMaxStackTraces;
   } while (i != idx);
   pthread_mutex_unlock(&tracesLock);
+  reset_rand_itimer();
 }
 
 // This method schedules the SIGPROF timer to go off every sec
@@ -180,7 +205,7 @@ struct sigaction SignalHandler::SetAction(void (*action)(int, siginfo_t *,
 }
 
 bool Profiler::Start() {
-  int usec_wait = 1000000 / kNumInterrupts;
+  srand(time(NULL));
 
   memset(traces_, 0, sizeof(traces_));
   memset(frame_buffer_, 0, sizeof(frame_buffer_));
@@ -189,6 +214,8 @@ bool Profiler::Start() {
   // old_action_ is stored, but never used.  This is in case of future
   // refactorings that need it.
   old_action_ = handler_.SetAction(&Profiler::Handle);
+
+  int usec_wait = kNumInterrupts;
   return handler_.SetSigprofInterval(0, usec_wait);
 }
 
